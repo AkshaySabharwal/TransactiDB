@@ -1,0 +1,23 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c11
+OBJS = main.o db.o index.o parser.o
+
+all: transactid
+
+transactid: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS)
+
+main.o: main.c db.h parser.h
+	$(CC) $(CFLAGS) -c main.c
+
+db.o: db.c db.h index.h
+	$(CC) $(CFLAGS) -c db.c
+
+index.o: index.c index.h
+	$(CC) $(CFLAGS) -c index.c
+
+parser.o: parser.c parser.h db.h
+	$(CC) $(CFLAGS) -c parser.c
+
+clean:
+	rm -f *.o transactid
