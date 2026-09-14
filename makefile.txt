@@ -1,23 +1,33 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-OBJS = main.o db.o index.o parser.o
+CFLAGS = -Wall -Wextra -std=c11 -O2
+OBJS = main.o db.o index.o parser.o transaction.o lock.o deadlock.o
+TARGET = transactid.exe
 
-all: transactid
+all: $(TARGET)
 
-transactid: $(OBJS)
+$(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS)
 
-main.o: main.c db.h parser.h
+main.o: main.c db.h parser.h transaction.h lock.h
 	$(CC) $(CFLAGS) -c main.c
 
-db.o: db.c db.h index.h
+db.o: db.c db.h index.h transaction.h
 	$(CC) $(CFLAGS) -c db.c
 
 index.o: index.c index.h
 	$(CC) $(CFLAGS) -c index.c
 
-parser.o: parser.c parser.h db.h
+parser.o: parser.c parser.h db.h transaction.h lock.h deadlock.h
 	$(CC) $(CFLAGS) -c parser.c
 
+transaction.o: transaction.c transaction.h db.h parser.h
+	$(CC) $(CFLAGS) -c transaction.c
+
+lock.o: lock.c lock.h
+	$(CC) $(CFLAGS) -c lock.c
+
+deadlock.o: deadlock.c deadlock.h
+	$(CC) $(CFLAGS) -c deadlock.c
+
 clean:
-	rm -f *.o transactid
+	rm -f *.o $(TARGET)
