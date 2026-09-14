@@ -871,7 +871,11 @@ void printHelp(void) {
     printf("   - COMMIT                 (Persists all changes)\n");
     printf("   - ROLLBACK               (Reverts all changes since BEGIN)\n");
     printf("   - STATUS                 (Displays active transaction state)\n\n");
-    printf("4. Schema & Concurrency:\n");
+    printf("4. Batch Scheduling & Scripts:\n");
+    printf("   - QUEUE <query>          (Enqueues a query for batch execution)\n");
+    printf("   - RUN                    (Executes all queued transactions in FIFO order)\n");
+    printf("   - RUN <file.sql>         (Executes all SQL commands from a script file)\n\n");
+    printf("5. Schema & Concurrency:\n");
     printf("   - SHOW TABLES / TABLES   (Lists all relational tables)\n");
     printf("   - DESCRIBE <table_name>  (Displays table schema)\n");
     printf("   - CREATE TABLE <name> (<col1> <type>, ...)\n");
@@ -946,6 +950,47 @@ void processQuery(char *line) {
         handleUpdate(p);
     } else if (strcmp(cmd, "DELETE") == 0) {
         handleDelete(p);
+    }
+    // 3. Batch Scheduler & Script Execution (RUN / QUEUE)
+    else if (strcmp(cmd, "QUEUE") == 0 || strcmp(cmd, "ADD") == 0) {
+        if (!p || strlen(p) == 0) {
+            printf("Usage: QUEUE <query>\n");
+            return;
+        }
+        addTransaction(p);
+        printf("[SCHEDULER] Queued transaction #%d: '%s'\n", rear - 1, p);
+    } else if (strcmp(cmd, "RUN") == 0 || strcmp(cmd, "EXECUTE") == 0 || strcmp(cmd, "EXEC") == 0) {
+        char *arg = next_token(&p);
+        if (arg) {
+            // Run script file: RUN <file.sql>
+            FILE *f = fopen(arg, "r");
+            if (!f) {
+                printf("Error: Could not open script file '%s'\n", arg);
+                return;
+            }
+            printf("[RUNNER] Executing script '%s'...\n", arg);
+            char fileLine[512];
+            int count = 0;
+            while (fgets(fileLine, sizeof(fileLine), f)) {
+                trim_whitespace(fileLine);
+                if (strlen(fileLine) == 0 || fileLine[0] == '-' || fileLine[0] == '#') continue;
+                printf("[RUNNER] > %s\n", fileLine);
+                processQuery(fileLine);
+                count++;
+            }
+            fclose(f);
+            printf("[RUNNER] Finished executing %d statement%s from '%s'.\n", count, count == 1 ? "" : "s", arg);
+        } else {
+            // Execute in-memory queued transactions
+            if (front >= rear) {
+                printf("[SCHEDULER] Transaction queue is empty. Use 'QUEUE <query>' or 'RUN <script.sql>'.\n");
+            } else {
+                printf("[SCHEDULER] Executing %d queued transaction%s...\n", rear - front, (rear - front) == 1 ? "" : "s");
+                executeTransactions();
+                front = 0;
+                rear = 0;
+            }
+        }
     } else if (strcmp(cmd, "LOCKS") == 0) {
         printLockStatus();
     } else if (strcmp(cmd, "DEADLOCK") == 0 || strcmp(cmd, "GRAPH") == 0) {
